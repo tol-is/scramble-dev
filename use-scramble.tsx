@@ -33,9 +33,6 @@ export const useScramble = (props: UseScrambleProps) => {
     onComplete,
   } = props;
 
-  console.log(scramble);
-  // const interval = 1 //11 - speed * 10
-
   // text node ref
   const textRef = React.useRef<any>(null);
 
@@ -53,7 +50,7 @@ export const useScramble = (props: UseScrambleProps) => {
   const idxRef = React.useRef<number>(0);
 
   // scramble controller
-  const scrambleRef = React.useRef<number[]>([]);
+  const controlRef = React.useRef<Array<string | number>>([]);
 
   // dice role with 20%
   const getRandomScramble = () => {
@@ -63,31 +60,34 @@ export const useScramble = (props: UseScrambleProps) => {
 
   // pick random character ahead in the string, and add them to the randomizer
   const seedRandomCharacters = () => {
-    for (var i = 0; i < seed; i++) {
-      const pos = getRandomInt(idxRef.current, text.length);
-      scrambleRef.current[pos] =
-        scrambleRef.current[pos] || getRandomScramble();
-    }
+    // for (var i = 0; i < seed; i++) {
+    //   const pos = getRandomInt(idxRef.current, text.length - 1);
+    //   controlRef.current[pos] = controlRef.current[pos] || getRandomScramble();
+    // }
+    // console.log(controlRef.current.length);
   };
 
   // add `step` characters to the randomizer, and increase the idxRef pointer
   const moveCharIndex = () => {
-    const remainingSteps = text.length - idxRef.current;
-    const nextSteps = Math.min(step, remainingSteps);
-
-    for (var i = 0; i < nextSteps; i++) {
+    if (idxRef.current < text.length) {
       const currentIndex = idxRef.current;
-      scrambleRef.current[currentIndex] =
-        scrambleRef.current[currentIndex] || getRandomScramble();
+      controlRef.current[currentIndex] =
+        controlRef.current[currentIndex] || getRandomScramble();
       idxRef.current += 1;
     }
+    // const remainingSteps = text.length - idxRef.current;
+    // const nextSteps = Math.min(step, remainingSteps);
+    // for (var i = 0; i <= nextSteps; i++) {
+    //   const currentIndex = idxRef.current;
+    //   controlRef.current[currentIndex] =
+    //     controlRef.current[currentIndex] || getRandomScramble();
+    //   idxRef.current += 1;
+    // }
   };
 
   // draw when fpsInterval time has passed. fpsInterval is computed by the `speed` prop
   const animate = (time: number) => {
     const timeElapsed = time - elapsedRef.current;
-
-    console.log(timeElapsed);
 
     rafRef.current = requestAnimationFrame(animate);
 
@@ -115,20 +115,29 @@ export const useScramble = (props: UseScrambleProps) => {
     let charsDone = 0;
 
     for (var i = 0; i < text.length; i++) {
-      const cPos = scrambleRef.current[i];
+      const cPos = controlRef.current[i];
 
       switch (true) {
-        case text[i] === " ":
-          newString += " ";
-          charsDone++;
+        // case i >= text.length + step:
+        //   controlRef.current.splice(i, step);
+        //   break;
+        case typeof cPos === "string" && i > idxRef.current:
+          newString += cPos;
           break;
-        case cPos <= 0:
+        case typeof cPos === "string" && i <= idxRef.current:
           newString += text[i];
           charsDone++;
           break;
+
+        case cPos === 0 || text[i] === " ":
+          newString += text[i];
+          controlRef.current[i] = text[i];
+          charsDone++;
+          break;
+
         case cPos > 0 && i <= idxRef.current:
           newString += getRandomChar();
-          scrambleRef.current[i] -= 1;
+          controlRef.current[i] = (controlRef.current[i] as number) - 1;
           break;
         case cPos > 0:
           newString += getRandomChar();
@@ -141,6 +150,7 @@ export const useScramble = (props: UseScrambleProps) => {
     textRef.current.innerHTML = newString;
 
     if (charsDone === text.length) {
+      console.log(controlRef.current);
       if (onComplete) {
         onComplete();
       }
@@ -148,7 +158,7 @@ export const useScramble = (props: UseScrambleProps) => {
         stepRef.current = 0;
         idxRef.current = 0;
         elapsedRef.current = 0;
-        scrambleRef.current = new Array(text.length);
+        controlRef.current = new Array(text.length);
       } else {
         cancelAnimationFrame(rafRef.current);
       }
@@ -159,11 +169,25 @@ export const useScramble = (props: UseScrambleProps) => {
 
   // reset step when text is changed
   React.useEffect(() => {
-    // clearTimeout(loopRef.current)
     stepRef.current = 0;
     idxRef.current = 0;
-    elapsedRef.current = 0;
-    scrambleRef.current = new Array(text.length);
+    const newArray = new Array(text.length);
+    const prevString = controlRef.current.join("");
+
+    for (let i = 0; i < prevString.length; i++) {
+      newArray[i] = prevString[i];
+    }
+
+    controlRef.current = newArray;
+
+    // clearTimeout(loopRef.current)
+    // console.log(text);
+    // console.log(text.length);
+    // stepRef.current = 0;
+    // idxRef.current = 0;
+    // elapsedRef.current = 0;
+    // controlRef.current = new Array(text.length);
+    // console.log(controlRef.current.length);
   }, [text]);
 
   //
@@ -177,7 +201,7 @@ export const useScramble = (props: UseScrambleProps) => {
     return () => {
       cancelAnimationFrame(rafRef.current);
     };
-  }, [animate, speed]); // Make sure the effect runs only once
+  }, [animate, speed, text]); // Make sure the effect runs only once
 
   return { ref: textRef };
 };
